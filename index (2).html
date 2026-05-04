@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>繁星 Stardust 星屑</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;500;700&family=Zen+Kaku+Gothic+New:wght@300;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root { --void:#050510; --star:#e8e0f0; --dim:#6b6b8d; }
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--void);color:var(--star);font-family:'Noto Serif SC','Zen Kaku Gothic New',serif;cursor:default}
+canvas#cosmos{position:fixed;inset:0;z-index:0}
+#ui-overlay{position:fixed;inset:0;z-index:10;pointer-events:none}
+#ui-overlay>*{pointer-events:auto}
+
+/* Header */
+#header{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;align-items:center;justify-content:space-between;padding:1rem 1.8rem;background:linear-gradient(180deg,rgba(5,5,16,0.92) 0%,rgba(5,5,16,0.4) 60%,transparent 100%);pointer-events:auto;transition:opacity 0.5s}
+#logo{font-size:1.5rem;font-weight:700;letter-spacing:0.15em;background:linear-gradient(135deg,#c8d0e0,#f5f7fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;user-select:none}
+#logo small{display:block;font-size:0.6rem;font-weight:400;letter-spacing:0.35em;font-family:'Space Mono',monospace;opacity:0.45;-webkit-text-fill-color:var(--dim)}
+#header-right{display:flex;align-items:center;gap:0.8rem}
+.header-btn{font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--dim);background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);padding:0.3rem 0.7rem;border-radius:12px;cursor:pointer;transition:all 0.3s;user-select:none}
+.header-btn:hover{color:var(--star);border-color:rgba(255,255,255,0.2)}
+
+/* Legend */
+#legend{position:fixed;top:4rem;left:1.8rem;z-index:20;display:flex;flex-direction:column;gap:0.45rem;font-family:'Space Mono',monospace;font-size:0.6rem;color:var(--dim);opacity:0.7;transition:opacity 0.5s;pointer-events:none}
+.legend-item{display:flex;align-items:center;gap:0.4rem}
+.legend-dot{width:7px;height:7px;border-radius:50%;box-shadow:0 0 4px currentColor}
+
+/* Tooltip */
+#tooltip{position:fixed;z-index:30;pointer-events:none;opacity:0;transition:opacity 0.25s;text-align:center;font-size:0.85rem;font-weight:500;text-shadow:0 0 20px rgba(0,0,0,0.9),0 0 40px rgba(0,0,0,0.7);transform:translateX(-50%)}
+#tooltip small{display:block;font-family:'Space Mono',monospace;font-size:0.55rem;color:var(--dim);margin-top:0.2rem;font-weight:400}
+#tooltip.visible{opacity:1}
+
+#nebula-title{position:fixed;top:1rem;left:50%;transform:translateX(-50%);z-index:22;text-align:center;font-size:1.1rem;font-weight:500;letter-spacing:0.08em;text-shadow:0 0 30px rgba(0,0,0,0.8);opacity:0;pointer-events:none;transition:opacity 0.5s}
+#nebula-title small{display:block;font-family:'Space Mono',monospace;font-size:0.55rem;color:var(--dim);margin-top:0.2rem;font-weight:400}
+
+#back-btn{position:fixed;top:1rem;left:1.8rem;z-index:25;font-family:'Space Mono',monospace;font-size:0.7rem;color:var(--dim);background:rgba(10,10,30,0.6);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.08);padding:0.45rem 1.2rem;border-radius:16px;cursor:pointer;transition:all 0.3s;opacity:0;pointer-events:none;user-select:none}
+#back-btn:hover{color:var(--star);border-color:rgba(255,255,255,0.2)}
+#back-btn.visible{opacity:1;pointer-events:auto}
+
+#add-frag-btn{position:fixed;bottom:2rem;right:2rem;z-index:25;font-family:'Noto Serif SC',serif;font-size:0.8rem;color:var(--star);background:rgba(20,20,50,0.7);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.12);padding:0.6rem 1.4rem;border-radius:20px;cursor:pointer;transition:all 0.3s;opacity:0;pointer-events:none;user-select:none;letter-spacing:0.05em}
+#add-frag-btn:hover{background:rgba(40,40,80,0.8);border-color:rgba(255,255,255,0.25);transform:scale(1.05)}
+#add-frag-btn.visible{opacity:1;pointer-events:auto}
+
+/* Modals */
+.modal-backdrop{position:fixed;inset:0;z-index:50;background:rgba(3,3,12,0.75);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.35s}
+.modal-backdrop.visible{opacity:1;pointer-events:auto}
+.modal-box{max-width:440px;width:92%;max-height:85vh;overflow-y:auto;padding:1.8rem 2rem;border-radius:16px;background:rgba(12,12,35,0.94);border:1px solid rgba(255,255,255,0.06);position:relative;transform:scale(0.92) translateY(10px);transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1)}
+.modal-backdrop.visible .modal-box{transform:scale(1) translateY(0)}
+.modal-box .modal-close{position:absolute;top:0.8rem;right:1rem;font-size:1.2rem;color:var(--dim);cursor:pointer;background:none;border:none;transition:color 0.2s}
+.modal-box .modal-close:hover{color:var(--star)}
+.modal-title{font-size:1rem;font-weight:700;margin-bottom:1.2rem;letter-spacing:0.05em}
+
+/* Forms */
+.form-group{margin-bottom:1rem}
+.form-label{display:block;font-family:'Space Mono',monospace;font-size:0.6rem;color:var(--dim);margin-bottom:0.3rem;letter-spacing:0.05em}
+.form-input{width:100%;padding:0.5rem 0.7rem;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:var(--star);font-family:inherit;font-size:0.85rem;transition:border-color 0.2s;outline:none}
+.form-input:focus{border-color:rgba(255,255,255,0.25)}
+.form-input::placeholder{color:rgba(255,255,255,0.15)}
+textarea.form-input{resize:vertical;min-height:60px;line-height:1.6}
+.form-row{display:flex;gap:0.8rem}
+.form-row .form-group{flex:1}
+.form-select{width:100%;padding:0.5rem 0.7rem;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:var(--star);font-family:inherit;font-size:0.85rem;outline:none;cursor:pointer;-webkit-appearance:none}
+.form-select option{background:#0a0b1e;color:var(--star)}
+.form-submit{width:100%;padding:0.6rem;border-radius:10px;border:none;font-family:'Noto Serif SC',serif;font-size:0.85rem;letter-spacing:0.08em;cursor:pointer;transition:all 0.3s;margin-top:0.5rem}
+.form-submit:disabled{opacity:0.4;cursor:not-allowed}
+
+/* Color picker swatches */
+.color-swatches{display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.3rem}
+.color-swatch{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all 0.2s;box-shadow:0 0 6px rgba(0,0,0,0.3)}
+.color-swatch:hover{transform:scale(1.15)}
+.color-swatch.selected{border-color:#fff;box-shadow:0 0 12px currentColor}
+
+/* Checkbox */
+.check-row{display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem}
+.check-row input[type=checkbox]{width:16px;height:16px;cursor:pointer}
+.check-row label{font-size:0.75rem;color:var(--dim);cursor:pointer}
+
+/* Fragment detail */
+.modal-char{font-size:1.2rem;font-weight:700;margin-bottom:0.15rem}
+.modal-char-sub{font-family:'Space Mono',monospace;font-size:0.6rem;color:var(--dim);margin-bottom:1.2rem}
+.modal-quote{font-size:0.95rem;line-height:1.85;color:#d0c8e0;font-style:italic;padding-left:1rem;border-left:2px solid rgba(255,255,255,0.1);margin-bottom:0.6rem}
+.modal-orig{font-family:'Space Mono',monospace;font-size:0.72rem;color:#7878a0;line-height:1.7;padding-left:1rem;margin-bottom:1rem}
+.modal-delete{display:inline-block;margin-top:0.8rem;font-family:'Space Mono',monospace;font-size:0.6rem;color:#ff6b6b;cursor:pointer;background:none;border:1px solid rgba(255,107,107,0.2);padding:0.3rem 0.8rem;border-radius:8px;transition:all 0.2s}
+.modal-delete:hover{background:rgba(255,107,107,0.1);border-color:rgba(255,107,107,0.4)}
+
+/* Onboarding */
+#onboarding{position:fixed;inset:0;z-index:200;background:var(--void);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 0.8s}
+#onboarding.done{opacity:0;pointer-events:none}
+.onboard-title{font-size:2rem;font-weight:700;letter-spacing:0.2em;margin-bottom:0.3rem;background:linear-gradient(135deg,#c8d0e0,#f5f7fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.onboard-sub{font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--dim);letter-spacing:0.3em;margin-bottom:2.5rem}
+.onboard-section{text-align:center;margin-bottom:2rem}
+.onboard-section h3{font-size:0.8rem;font-weight:500;margin-bottom:1rem;color:var(--dim);font-family:'Space Mono',monospace}
+.lang-options{display:flex;gap:1rem;justify-content:center}
+.lang-option{padding:0.6rem 1.5rem;border:1px solid rgba(255,255,255,0.1);border-radius:12px;cursor:pointer;font-size:0.9rem;transition:all 0.3s;color:var(--dim)}
+.lang-option:hover{color:var(--star);border-color:rgba(255,255,255,0.3)}
+.lang-option.selected{color:var(--star);border-color:var(--star);background:rgba(255,255,255,0.05)}
+
+/* Filter list */
+.filter-list{max-width:400px;width:90%;max-height:50vh;overflow-y:auto;text-align:left;margin:0 auto}
+.filter-item{display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0.3rem;border-bottom:1px solid rgba(255,255,255,0.03)}
+.filter-item input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:#7ec8e3}
+.filter-item label{font-size:0.8rem;cursor:pointer;flex:1}
+.filter-item .filter-type{font-family:'Space Mono',monospace;font-size:0.5rem;color:var(--dim)}
+.onboard-enter{margin-top:1.5rem;padding:0.7rem 2.5rem;border:1px solid rgba(255,255,255,0.15);border-radius:16px;background:rgba(255,255,255,0.04);color:var(--star);font-family:'Noto Serif SC',serif;font-size:0.9rem;cursor:pointer;transition:all 0.3s;letter-spacing:0.1em}
+.onboard-enter:hover{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.3)}
+
+/* Loading */
+#loading-screen{position:fixed;inset:0;z-index:150;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--void);transition:opacity 1s}
+#loading-screen.done{opacity:0;pointer-events:none}
+.loading-ring{width:50px;height:50px;border-radius:50%;border:2px solid rgba(160,140,255,0.15);border-top-color:rgba(160,140,255,0.5);animation:spin 1.2s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loading-screen p{margin-top:1.2rem;font-size:0.75rem;color:var(--dim);font-family:'Space Mono',monospace;letter-spacing:0.12em}
+
+@media(max-width:768px){
+  #header{padding:0.7rem 1rem}#logo{font-size:1.2rem}
+  #legend{top:3.2rem;left:1rem;font-size:0.5rem}
+  #back-btn{left:1rem;font-size:0.6rem;padding:0.35rem 0.9rem}
+  #nebula-title{font-size:0.9rem}
+  #add-frag-btn{bottom:1.2rem;right:1.2rem;font-size:0.7rem;padding:0.5rem 1rem}
+  .modal-box{padding:1.4rem 1.2rem}
+  .onboard-title{font-size:1.4rem}
+  .lang-options{flex-wrap:wrap}
+}
+</style>
+</head>
+<body>
+
+<div id="loading-screen"><div class="loading-ring"></div><p>initializing cosmos...</p></div>
+
+<!-- Onboarding (first visit) -->
+<div id="onboarding" style="display:none">
+  <div class="onboard-title">繁星</div>
+  <div class="onboard-sub">STARDUST · 星屑</div>
+  <div class="onboard-section" id="onboard-step-lang">
+    <h3>Choose your language</h3>
+    <div class="lang-options">
+      <div class="lang-option" onclick="onboardPickLang('zh')">中文</div>
+      <div class="lang-option" onclick="onboardPickLang('en')">English</div>
+      <div class="lang-option" onclick="onboardPickLang('ja')">日本語</div>
+    </div>
+  </div>
+  <div class="onboard-section" id="onboard-step-filter" style="display:none">
+    <h3 id="onboard-filter-title">选择你想看的作品</h3>
+    <div class="filter-list" id="onboard-filter-list"></div>
+    <button class="onboard-enter" id="onboard-enter-btn" onclick="onboardFinish()">进入星空</button>
+  </div>
+</div>
+
+<canvas id="cosmos"></canvas>
+
+<div id="ui-overlay">
+  <div id="header">
+    <div id="logo">繁星<small>STARDUST · 星屑</small></div>
+    <div id="header-right">
+      <div class="header-btn" id="create-nebula-btn" onclick="showCreateNebulaForm()">+ 新星云</div>
+      <div class="header-btn" id="settings-btn" onclick="showSettings()">⚙</div>
+      <div class="header-btn" onclick="cycleLang()">中 / EN / 日</div>
+    </div>
+  </div>
+  <div id="legend">
+    <div class="legend-item"><div class="legend-dot" style="color:#7ec8e3"></div><span class="legend-text">游戏 Game</span></div>
+    <div class="legend-item"><div class="legend-dot" style="color:#ff6b9d"></div><span class="legend-text">动漫 Anime</span></div>
+    <div class="legend-item"><div class="legend-dot" style="color:#ffd700"></div><span class="legend-text">电影/影视 Film</span></div>
+  </div>
+</div>
+
+<div id="tooltip"><span id="tt-name"></span><small id="tt-sub"></small></div>
+<div id="nebula-title"></div>
+<button id="back-btn" onclick="exitNebula()">← 返回星图</button>
+<button id="add-frag-btn" onclick="showAddFragForm()">✦ 点亮新星</button>
+
+<!-- Fragment detail modal -->
+<div class="modal-backdrop" id="frag-modal-backdrop" onclick="closeModal('frag-modal-backdrop',event)">
+  <div class="modal-box"><button class="modal-close" onclick="closeModal('frag-modal-backdrop')">×</button><div id="modal-body"></div></div>
+</div>
+<!-- Add fragment modal -->
+<div class="modal-backdrop" id="add-frag-modal" onclick="closeModal('add-frag-modal',event)">
+  <div class="modal-box"><button class="modal-close" onclick="closeModal('add-frag-modal')">×</button><div class="modal-title" id="add-frag-title">✦ 点亮新星</div><div id="add-frag-form-body"></div></div>
+</div>
+<!-- Create nebula modal -->
+<div class="modal-backdrop" id="create-nebula-modal" onclick="closeModal('create-nebula-modal',event)">
+  <div class="modal-box"><button class="modal-close" onclick="closeModal('create-nebula-modal')">×</button><div class="modal-title">✧ 创建新星云</div><div id="create-nebula-form-body"></div></div>
+</div>
+<!-- Settings modal -->
+<div class="modal-backdrop" id="settings-modal" onclick="closeModal('settings-modal',event)">
+  <div class="modal-box"><button class="modal-close" onclick="closeModal('settings-modal')">×</button><div class="modal-title" id="settings-title">⚙ 设置</div><div id="settings-body"></div></div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-app.js";
+import {
+  getFirestore, collection, doc, getDocs, addDoc, deleteDoc, onSnapshot,
+  serverTimestamp, updateDoc, increment
+} from "https://www.gstatic.com/firebasejs/11.7.1/firebase-firestore.js";
+
+const app = initializeApp({
+  apiKey: "AIzaSyBG4pt2sxRAWHsK-bQYla_r0C4TfeCMAv4",
+  projectId: "stardust-3622c",
+  appId: "1:1038686736547:web:957aed7f89f7684dc6af16"
+});
+const db = getFirestore(app);
+
+const TYPE_COLORS = {"游戏":"#7ec8e3","动漫":"#ff6b9d","电影":"#ffd700","影视":"#ffd700"};
+
+// Preset colors for fragment color picker
+const FRAG_COLORS = [
+  '#7ec8e3','#5b9bd5','#4a7fb5', // blues
+  '#ff6b9d','#e84393','#d63031', // pinks/reds
+  '#ffd700','#fdcb6e','#f39c12', // golds/oranges
+  '#00cec9','#55efc4','#00b894', // teals/greens
+  '#a29bfe','#6c5ce7','#9b59b6', // purples
+  '#dfe6e9','#b2bec3','#636e72'  // grays
+];
+
+function getOrCreateUUID() {
+  let id = localStorage.getItem('stardust-uuid');
+  if (!id) { id = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)+Date.now().toString(36); localStorage.setItem('stardust-uuid', id); }
+  return id;
+}
+const USER_UUID = getOrCreateUUID();
+
+// ═══════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════
+let nebulae = [];
+let hiddenNebulae = JSON.parse(localStorage.getItem('stardust-hidden') || '[]');
+let currentView = 'overview';
+let currentNebula = null;
+let currentFragments = [];
+let lang = localStorage.getItem('stardust-lang') || '';
+let unsubFragments = null;
+
+const canvas = document.getElementById('cosmos');
+const ctx = canvas.getContext('2d');
+let W=0, H=0, mouseX=-9999, mouseY=-9999;
+let hoveredNebula=null, hoveredFragment=null;
+let bgStars=[], orbs=[], fragClouds=[];
+let zoomProgress=0, zoomTarget=0;
+let explosions=[];
+
+function hexToRgb(h){return[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)]}
+
+// Visible nebulae (filtered)
+function visibleNebulae() { return nebulae.filter(n => !hiddenNebulae.includes(n.id)); }
+
+// ═══════════════════════════════════════
+//  LANGUAGE
+// ═══════════════════════════════════════
+const UI = {
+  zh:{back:'← 返回星图',addStar:'✦ 点亮新星',newNeb:'+ 新星云',charName:'角色名',quote:'高光台词',
+      save:'点亮',saving:'保存中...',nebName:'作品名',nebType:'类型',create:'创建',
+      isOrig:'这是角色的原文台词',color:'选择颜色',settings:'⚙ 设置',
+      filterTitle:'选择你想看的作品',enter:'进入星空',delete:'删除',confirmDel:'确定删除？',
+      translating:'翻译中...'},
+  en:{back:'← Back',addStar:'✦ Light a Star',newNeb:'+ New Nebula',charName:'Character Name',quote:'Iconic Quote',
+      save:'Light it up',saving:'Saving...',nebName:'Title',nebType:'Type',create:'Create',
+      isOrig:'This is the original quote',color:'Choose color',settings:'⚙ Settings',
+      filterTitle:'Choose which titles to show',enter:'Enter the cosmos',delete:'Delete',confirmDel:'Delete this?',
+      translating:'Translating...'},
+  ja:{back:'← 戻る',addStar:'✦ 星を灯す',newNeb:'+ 新星雲',charName:'キャラクター名',quote:'名台詞',
+      save:'灯す',saving:'保存中...',nebName:'作品名',nebType:'タイプ',create:'作成',
+      isOrig:'原語の台詞です',color:'色を選ぶ',settings:'⚙ 設定',
+      filterTitle:'表示する作品を選ぶ',enter:'星空へ',delete:'削除',confirmDel:'削除しますか？',
+      translating:'翻訳中...'}
+};
+function t(k){return(UI[lang]||UI.en)[k]||UI.en[k]||k}
+
+function cycleLang(){
+  const o=['zh','en','ja']; lang=o[(o.indexOf(lang)+1)%3];
+  localStorage.setItem('stardust-lang',lang);
+  document.getElementById('back-btn').textContent=t('back');
+  document.getElementById('add-frag-btn').textContent=t('addStar');
+  document.getElementById('create-nebula-btn').textContent=t('newNeb');
+  if(currentNebula) updateNebulaTitle();
+}
+window.cycleLang=cycleLang;
+
+function nebName(n){
+  if(lang==='en')return n.name_en||n.ipEn||n.name_zh||n.ip||'?';
+  if(lang==='ja')return n.name_ja||n.name_zh||n.ip||'?';
+  return n.name_zh||n.ip||'?';
+}
+function nebSub(n){
+  if(lang==='zh')return n.name_en||n.ipEn||'';
+  if(lang==='en')return n.name_zh||n.ip||'';
+  return n.name_en||n.ipEn||'';
+}
+function fragChar(f){
+  if(lang==='en')return f.character_en||f.nameEn||f.name||f.character_zh||'?';
+  if(lang==='ja')return f.character_ja||f.character_zh||f.name||'?';
+  return f.character_zh||f.name||f.character_en||f.nameEn||'?';
+}
+function fragCharSub(f){
+  if(lang==='zh')return f.character_en||f.nameEn||'';
+  if(lang==='en')return f.character_zh||f.name||'';
+  return f.character_en||f.nameEn||'';
+}
+function fragQuote(f){
+  if(lang==='en')return f.quote_en||f.line_en||f.quote_zh||f.line_zh||'';
+  if(lang==='ja')return f.quote_ja||f.line_ja||f.quote_zh||f.line_zh||'';
+  return f.quote_zh||f.line_zh||f.quote_en||f.line_en||'';
+}
+function fragOrig(f){return f.quote_original||f.line_orig||''}
+function updateNebulaTitle(){
+  const el=document.getElementById('nebula-title');if(!currentNebula)return;
+  el.style.color=currentNebula.color||TYPE_COLORS[currentNebula.type]||'#aaa';
+  el.innerHTML=`${nebName(currentNebula)}<small>${nebSub(currentNebula)}</small>`;
+}
+
+// ═══════════════════════════════════════
+//  CANVAS
+// ═══════════════════════════════════════
+function resize(){W=canvas.width=innerWidth;H=canvas.height=innerHeight;generateBgStars();if(currentView==='overview')layoutOrbs();if(currentView==='nebula')layoutFragments()}
+function generateBgStars(){bgStars=[];const d=Math.floor((W*H)/1800);for(let i=0;i<d;i++)bgStars.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.1+0.15,brightness:0.15+Math.random()*0.85,phase:Math.random()*Math.PI*2,speed:0.0003+Math.random()*0.0006})}
+addEventListener('resize',resize);resize();
+
+// ═══════════════════════════════════════
+//  OVERVIEW LAYOUT
+// ═══════════════════════════════════════
+function layoutOrbs(){
+  orbs=[];const visible=visibleNebulae();if(!visible.length)return;
+  const pad=90,hH=70;
+  const tg={};for(const n of visible){const tt=n.type||'?';if(!tg[tt])tg[tt]=[];tg[tt].push(n)}
+  const tk=Object.keys(tg),cols=Math.ceil(Math.sqrt(tk.length)),rows=Math.ceil(tk.length/cols);
+  const zc={};
+  tk.forEach((tt,i)=>{const c=i%cols,r=Math.floor(i/cols),zW=(W-pad*2)/cols,zH=(H-hH-pad*2)/rows;zc[tt]={cx:pad+zW*(c+0.5),cy:hH+pad+zH*(r+0.5),spread:Math.min(zW,zH)*0.38}});
+  const mc=Math.max(...visible.map(n=>n.fragmentCount||n.characterCount||1));
+  for(const n of visible){
+    const cnt=n.fragmentCount||n.characterCount||1,bR=20+(cnt/mc)*28,zone=zc[n.type||'?'];
+    let x,y,placed=false,att=0;
+    while(!placed&&att<300){const a=Math.random()*Math.PI*2,d=Math.random()*zone.spread;x=zone.cx+Math.cos(a)*d;y=zone.cy+Math.sin(a)*d;x=Math.max(pad,Math.min(W-pad,x));y=Math.max(hH+pad,Math.min(H-pad,y));let ok=true;for(const e of orbs){const dx=x-e.x,dy=y-e.y;if(dx*dx+dy*dy<(e.r+bR+28)**2){ok=false;break}}if(ok)placed=true;att++}
+    if(!placed){const a=Math.random()*Math.PI*2;x=zone.cx+Math.cos(a)*zone.spread*1.3;y=zone.cy+Math.sin(a)*zone.spread*1.3}
+    const color=n.color||TYPE_COLORS[n.type]||'#aaa';
+    orbs.push({neb:n,x,y,r:bR,color,rgb:hexToRgb(color),phase:Math.random()*Math.PI*2,breathSpeed:0.0008+Math.random()*0.0006,driftX:(Math.random()-0.5)*0.12,driftY:(Math.random()-0.5)*0.08,driftPhase:Math.random()*Math.PI*2})
+  }
+}
+
+// ═══════════════════════════════════════
+//  FRAGMENT LAYOUT — per-fragment color
+// ═══════════════════════════════════════
+function makeCloud(frag, cx, cy){
+  const fragColor = frag.color || currentNebula?.color || TYPE_COLORS[currentNebula?.type] || '#aaa';
+  const rgb = hexToRgb(fragColor);
+  const layers=[];
+  for(let i=0;i<3+Math.floor(Math.random()*3);i++){
+    const a=Math.random()*Math.PI*2,d=Math.random()*20;
+    const rS=Math.floor((Math.random()-0.5)*35),gS=Math.floor((Math.random()-0.5)*25),bS=Math.floor((Math.random()-0.5)*35);
+    layers.push({ox:Math.cos(a)*d,oy:Math.sin(a)*d,rx:25+Math.random()*30,ry:18+Math.random()*25,rotation:Math.random()*Math.PI,alpha:0.12+Math.random()*0.15,r:Math.min(255,Math.max(0,rgb[0]+rS)),g:Math.min(255,Math.max(0,rgb[1]+gS)),b:Math.min(255,Math.max(0,rgb[2]+bS)),driftSpeed:0.00015+Math.random()*0.0003,driftPhase:Math.random()*Math.PI*2,driftRadius:2+Math.random()*5})
+  }
+  const sparkles=[];
+  for(let i=0;i<2+Math.floor(Math.random()*3);i++)sparkles.push({ox:(Math.random()-0.5)*30,oy:(Math.random()-0.5)*24,r:0.8+Math.random()*2,alpha:0.5+Math.random()*0.5,phase:Math.random()*Math.PI*2,twinkleSpeed:0.001+Math.random()*0.002});
+  return{frag,cx,cy,color:fragColor,rgb,layers,sparkles,hitRadius:55}
+}
+function layoutFragments(){
+  if(!currentFragments.length){fragClouds=[];return}
+  const pad=130,uW=W-pad*2,uH=H-pad*2;
+  // Build a map of existing cloud positions by fragment id
+  const existingMap=new Map();
+  for(const c of fragClouds)existingMap.set(c.frag.id,{cx:c.cx,cy:c.cy});
+  // Collect all occupied positions (from existing clouds)
+  const placed=[...existingMap.values()].map(p=>({x:p.cx,y:p.cy}));
+  const newClouds=[];
+  for(const f of currentFragments){
+    // If this fragment already has a cloud, keep it
+    if(existingMap.has(f.id)){
+      const existing=fragClouds.find(c=>c.frag.id===f.id);
+      if(existing){existing.frag=f;newClouds.push(existing);continue}
+    }
+    // New fragment — find a position that doesn't overlap existing ones
+    let cx=pad+(f.x!=null?f.x:Math.random())*uW,cy=pad+(f.y!=null?f.y:Math.random())*uH;
+    for(let r=0;r<40;r++){let bad=false;for(const p of placed){if((cx-p.x)**2+(cy-p.y)**2<140*140){bad=true;break}}if(!bad)break;cx=pad+Math.random()*uW;cy=pad+Math.random()*uH}
+    placed.push({x:cx,y:cy});newClouds.push(makeCloud(f,cx,cy))
+  }
+  fragClouds=newClouds
+}
+
+// ═══════════════════════════════════════
+//  EXPLOSION
+// ═══════════════════════════════════════
+function triggerExplosion(cx,cy,color){
+  const rgb=hexToRgb(color),ps=[];
+  for(let i=0;i<70+Math.floor(Math.random()*40);i++){const a=Math.random()*Math.PI*2,s=1+Math.random()*4,rS=Math.floor((Math.random()-0.5)*40),gS=Math.floor((Math.random()-0.5)*30),bS=Math.floor((Math.random()-0.5)*40);ps.push({x:0,y:0,vx:Math.cos(a)*s,vy:Math.sin(a)*s,r:0.5+Math.random()*2.5,alpha:0.3+Math.random()*0.7,cr:Math.min(255,Math.max(0,rgb[0]+rS)),cg:Math.min(255,Math.max(0,rgb[1]+gS)),cb:Math.min(255,Math.max(0,rgb[2]+bS)),friction:0.94+Math.random()*0.04})}
+  explosions.push({cx,cy,rgb,particles:ps,startTime:performance.now(),duration:2500})
+}
+function drawExplosions(t,alpha){
+  const now=performance.now();
+  explosions=explosions.filter(e=>{const el=now-e.startTime;if(el>e.duration)return false;const pr=el/e.duration;
+    if(pr<0.15){ctx.globalAlpha=alpha*(1-pr/0.15)*0.6;const g=ctx.createRadialGradient(e.cx,e.cy,0,e.cx,e.cy,30);g.addColorStop(0,'rgba(255,255,255,0.9)');g.addColorStop(0.5,`rgba(${e.rgb[0]},${e.rgb[1]},${e.rgb[2]},0.4)`);g.addColorStop(1,'transparent');ctx.fillStyle=g;ctx.beginPath();ctx.arc(e.cx,e.cy,30,0,Math.PI*2);ctx.fill()}
+    const fo=pr>0.6?1-(pr-0.6)/0.4:1;
+    for(const p of e.particles){p.x+=p.vx;p.y+=p.vy;p.vx*=p.friction;p.vy*=p.friction;ctx.globalAlpha=alpha*p.alpha*fo;ctx.fillStyle=`rgb(${p.cr},${p.cg},${p.cb})`;ctx.beginPath();ctx.arc(e.cx+p.x,e.cy+p.y,p.r,0,Math.PI*2);ctx.fill();if(p.r>1){ctx.globalAlpha=alpha*p.alpha*fo*0.15;ctx.beginPath();ctx.arc(e.cx+p.x,e.cy+p.y,p.r*3.5,0,Math.PI*2);ctx.fill()}}
+    return true});ctx.globalAlpha=1
+}
+
+// ═══════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════
+function render(t){
+  ctx.fillStyle='#050510';ctx.fillRect(0,0,W,H);
+  for(const s of bgStars){const tw=0.4+0.6*Math.sin(t*s.speed*2+s.phase);ctx.globalAlpha=s.brightness*tw;ctx.fillStyle='#d8d4f0';ctx.beginPath();ctx.arc(s.x+(mouseX-W/2)*s.r*0.004,s.y+(mouseY-H/2)*s.r*0.004,s.r,0,Math.PI*2);ctx.fill()}
+  ctx.globalAlpha=1;
+  if(Math.random()<0.001){const sx=Math.random()*W,sy=Math.random()*H*0.5,len=50+Math.random()*100,ang=0.3+Math.random()*0.4;const g=ctx.createLinearGradient(sx,sy,sx+Math.cos(ang)*len,sy+Math.sin(ang)*len);g.addColorStop(0,'rgba(255,255,255,0.5)');g.addColorStop(1,'transparent');ctx.strokeStyle=g;ctx.lineWidth=0.7;ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(sx+Math.cos(ang)*len,sy+Math.sin(ang)*len);ctx.stroke()}
+  zoomProgress+=(zoomTarget-zoomProgress)*0.055;if(Math.abs(zoomProgress-zoomTarget)<0.001)zoomProgress=zoomTarget;
+  if(zoomProgress<1)drawOverview(t,1-zoomProgress);
+  if(zoomProgress>0)drawInternal(t,zoomProgress);
+  if(explosions.length)drawExplosions(t,currentView==='nebula'?1:0);
+  requestAnimationFrame(render)
+}
+
+function drawOverview(t,alpha){
+  hoveredNebula=null;
+  for(const o of orbs){
+    const br=Math.sin(t*o.breathSpeed+o.phase),bs=1+br*0.07;
+    const dx=Math.sin(t*0.0003+o.driftPhase)*o.driftX*25,dy=Math.cos(t*0.0004+o.driftPhase)*o.driftY*25;
+    const x=o.x+dx,y=o.y+dy,r=o.r*bs;
+    const dSq=(mouseX-x)**2+(mouseY-y)**2,isH=dSq<(r+18)**2&&currentView==='overview';
+    if(isH)hoveredNebula=o;const hb=isH?1.5:1;const[cr,cg,cb]=o.rgb;
+    ctx.globalAlpha=alpha*0.06*hb*(0.7+br*0.3);const g1=ctx.createRadialGradient(x,y,0,x,y,r*3.5);g1.addColorStop(0,`rgba(${cr},${cg},${cb},0.3)`);g1.addColorStop(0.5,`rgba(${cr},${cg},${cb},0.08)`);g1.addColorStop(1,'transparent');ctx.fillStyle=g1;ctx.beginPath();ctx.arc(x,y,r*3.5,0,Math.PI*2);ctx.fill();
+    ctx.globalAlpha=alpha*0.18*hb*(0.8+br*0.2);const g2=ctx.createRadialGradient(x,y,0,x,y,r*1.8);g2.addColorStop(0,`rgba(${cr},${cg},${cb},0.5)`);g2.addColorStop(0.5,`rgba(${cr},${cg},${cb},0.15)`);g2.addColorStop(1,'transparent');ctx.fillStyle=g2;ctx.beginPath();ctx.arc(x,y,r*1.8,0,Math.PI*2);ctx.fill();
+    ctx.globalAlpha=alpha*0.5*hb*(0.85+br*0.15);const g3=ctx.createRadialGradient(x,y,0,x,y,r*0.6);g3.addColorStop(0,'rgba(255,255,255,0.9)');g3.addColorStop(0.25,`rgba(${cr},${cg},${cb},0.7)`);g3.addColorStop(1,'transparent');ctx.fillStyle=g3;ctx.beginPath();ctx.arc(x,y,r*0.6,0,Math.PI*2);ctx.fill()
+  }
+  ctx.globalAlpha=1;
+  const tt=document.getElementById('tooltip');
+  if(hoveredNebula&&currentView==='overview'){const o=hoveredNebula;const dx=Math.sin(performance.now()*0.0003+o.driftPhase)*o.driftX*25,dy=Math.cos(performance.now()*0.0004+o.driftPhase)*o.driftY*25;tt.style.left=(o.x+dx)+'px';tt.style.top=(o.y+dy-o.r-25)+'px';tt.style.color=o.color;document.getElementById('tt-name').textContent=nebName(o.neb);document.getElementById('tt-sub').textContent=nebSub(o.neb);tt.classList.add('visible');canvas.style.cursor='pointer'}
+  else if(currentView==='overview'){tt.classList.remove('visible');canvas.style.cursor='default'}
+}
+
+function drawInternal(t,alpha){
+  if(!currentNebula)return;
+  const nc=currentNebula.color||TYPE_COLORS[currentNebula.type]||'#aaa';const[nr,ng,nb_]=hexToRgb(nc);
+  for(let i=0;i<3;i++){const fx=W*(0.2+i*0.3)+Math.sin(t*0.00012+i)*80,fy=H*(0.3+i*0.2)+Math.cos(t*0.00008+i*2)*60,fr=Math.max(W,H)*(0.3+i*0.1);ctx.globalAlpha=alpha*0.035;const fg=ctx.createRadialGradient(fx,fy,0,fx,fy,fr);fg.addColorStop(0,`rgba(${nr},${ng},${nb_},0.35)`);fg.addColorStop(0.5,`rgba(${nr},${ng},${nb_},0.08)`);fg.addColorStop(1,'transparent');ctx.fillStyle=fg;ctx.fillRect(0,0,W,H)}
+  hoveredFragment=null;
+  for(const c of fragClouds){
+    const dSq=(mouseX-c.cx)**2+(mouseY-c.cy)**2,isH=dSq<c.hitRadius**2&&currentView==='nebula';
+    if(isH)hoveredFragment=c;const hb=isH?1.35:1;const[fr,fg_,fb]=c.rgb;
+    for(const L of c.layers){const ldx=Math.sin(t*L.driftSpeed+L.driftPhase)*L.driftRadius,ldy=Math.cos(t*L.driftSpeed*0.8+L.driftPhase)*L.driftRadius;ctx.save();ctx.translate(c.cx+L.ox+ldx,c.cy+L.oy+ldy);ctx.rotate(L.rotation+t*0.00002);ctx.globalAlpha=alpha*L.alpha*hb;const gr=ctx.createRadialGradient(0,0,0,0,0,L.rx);gr.addColorStop(0,`rgba(${L.r},${L.g},${L.b},0.8)`);gr.addColorStop(0.3,`rgba(${L.r},${L.g},${L.b},0.35)`);gr.addColorStop(0.7,`rgba(${L.r},${L.g},${L.b},0.08)`);gr.addColorStop(1,'transparent');ctx.fillStyle=gr;ctx.beginPath();ctx.ellipse(0,0,L.rx*hb,L.ry*hb,0,0,Math.PI*2);ctx.fill();ctx.restore()}
+    for(const sp of c.sparkles){const tw=0.5+0.5*Math.sin(t*sp.twinkleSpeed+sp.phase);ctx.globalAlpha=alpha*sp.alpha*tw*hb;ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(c.cx+sp.ox,c.cy+sp.oy,sp.r*hb,0,Math.PI*2);ctx.fill()}
+    ctx.globalAlpha=alpha*0.35*hb;const cG=ctx.createRadialGradient(c.cx,c.cy,0,c.cx,c.cy,12*hb);cG.addColorStop(0,'rgba(255,255,255,0.8)');cG.addColorStop(0.4,`rgba(${fr},${fg_},${fb},0.4)`);cG.addColorStop(1,'transparent');ctx.fillStyle=cG;ctx.beginPath();ctx.arc(c.cx,c.cy,12*hb,0,Math.PI*2);ctx.fill();
+    ctx.globalAlpha=alpha*0.15*hb;const cg2=ctx.createRadialGradient(c.cx,c.cy,0,c.cx,c.cy,50*hb);cg2.addColorStop(0,`rgba(${fr},${fg_},${fb},0.5)`);cg2.addColorStop(1,'transparent');ctx.fillStyle=cg2;ctx.beginPath();ctx.arc(c.cx,c.cy,50*hb,0,Math.PI*2);ctx.fill()
+  }
+  ctx.globalAlpha=1;
+  const tt=document.getElementById('tooltip');
+  if(hoveredFragment&&currentView==='nebula'){tt.style.left=hoveredFragment.cx+'px';tt.style.top=(hoveredFragment.cy-hoveredFragment.hitRadius-18)+'px';tt.style.color=hoveredFragment.color;document.getElementById('tt-name').textContent=fragChar(hoveredFragment.frag);document.getElementById('tt-sub').textContent=fragCharSub(hoveredFragment.frag);tt.classList.add('visible');canvas.style.cursor='pointer'}
+  else if(currentView==='nebula'){tt.classList.remove('visible');canvas.style.cursor='default'}
+}
+
+// ═══════════════════════════════════════
+//  INTERACTION
+// ═══════════════════════════════════════
+canvas.addEventListener('mousemove',e=>{mouseX=e.clientX;mouseY=e.clientY});
+canvas.addEventListener('touchmove',e=>{mouseX=e.touches[0].clientX;mouseY=e.touches[0].clientY},{passive:true});
+canvas.addEventListener('mouseleave',()=>{mouseX=-9999;mouseY=-9999});
+canvas.addEventListener('click',async()=>{if(currentView==='overview'&&hoveredNebula)await enterNebula(hoveredNebula.neb);else if(currentView==='nebula'&&hoveredFragment)showFragmentModal(hoveredFragment.frag)});
+canvas.addEventListener('touchend',async e=>{if(currentView==='overview'&&hoveredNebula){e.preventDefault();await enterNebula(hoveredNebula.neb)}else if(currentView==='nebula'&&hoveredFragment){e.preventDefault();showFragmentModal(hoveredFragment.frag)}});
+
+// ═══════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════
+async function enterNebula(neb){
+  currentNebula=neb;currentView='nebula';zoomTarget=1;
+  document.getElementById('back-btn').classList.add('visible');document.getElementById('back-btn').textContent=t('back');
+  document.getElementById('add-frag-btn').classList.add('visible');document.getElementById('add-frag-btn').textContent=t('addStar');
+  document.getElementById('legend').style.opacity='0';document.getElementById('header').style.opacity='0';document.getElementById('header').style.pointerEvents='none';
+  document.getElementById('tooltip').classList.remove('visible');
+  updateNebulaTitle();document.getElementById('nebula-title').style.opacity='1';
+  if(unsubFragments)unsubFragments();
+  unsubFragments=onSnapshot(collection(db,"nebulae",neb.id,"fragments"),snap=>{
+    const oldIds=new Set(currentFragments.map(f=>f.id));currentFragments=[];
+    snap.forEach(d=>currentFragments.push({id:d.id,...d.data()}));
+    const newFrags=currentFragments.filter(f=>!oldIds.has(f.id));layoutFragments();
+    if(oldIds.size>0)for(const nf of newFrags){const cl=fragClouds.find(c=>c.frag.id===nf.id);if(cl)triggerExplosion(cl.cx,cl.cy,cl.color)}
+  })
+}
+function exitNebula(){
+  currentView='overview';zoomTarget=0;currentNebula=null;currentFragments=[];fragClouds=[];
+  if(unsubFragments){unsubFragments();unsubFragments=null}
+  document.getElementById('back-btn').classList.remove('visible');document.getElementById('add-frag-btn').classList.remove('visible');
+  document.getElementById('legend').style.opacity='0.7';document.getElementById('header').style.opacity='1';document.getElementById('header').style.pointerEvents='auto';
+  document.getElementById('tooltip').classList.remove('visible');document.getElementById('nebula-title').style.opacity='0'
+}
+window.exitNebula=exitNebula;
+
+// ═══════════════════════════════════════
+//  MODALS
+// ═══════════════════════════════════════
+function closeModal(id,e){if(e&&e.target!==document.getElementById(id))return;document.getElementById(id).classList.remove('visible')}
+window.closeModal=closeModal;
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){for(const id of['frag-modal-backdrop','add-frag-modal','create-nebula-modal','settings-modal']){if(document.getElementById(id).classList.contains('visible')){closeModal(id);return}}if(currentView==='nebula')exitNebula()}});
+
+// ── Fragment detail + delete ──
+function showFragmentModal(frag){
+  const color=frag.color||currentNebula?.color||TYPE_COLORS[currentNebula?.type]||'#aaa';
+  const quote=fragQuote(frag),orig=fragOrig(frag),showOrig=orig&&quote!==orig;
+  const isOwn=frag.createdBy===USER_UUID;
+  document.getElementById('modal-body').innerHTML=`
+    <div class="modal-char" style="color:${color}">${fragChar(frag)}</div>
+    <div class="modal-char-sub">${fragCharSub(frag)}</div>
+    <div class="modal-quote">「${quote}」</div>
+    ${showOrig?`<div class="modal-orig">${orig}</div>`:''}
+    ${isOwn?`<button class="modal-delete" onclick="deleteFrag('${frag.id}')">${t('delete')}</button>`:''}
+  `;
+  document.getElementById('frag-modal-backdrop').classList.add('visible')
+}
+
+async function deleteFrag(fragId){
+  if(!confirm(t('confirmDel')))return;
+  try{
+    await deleteDoc(doc(db,"nebulae",currentNebula.id,"fragments",fragId));
+    await updateDoc(doc(db,"nebulae",currentNebula.id),{fragmentCount:increment(-1)});
+    closeModal('frag-modal-backdrop')
+  }catch(e){console.error("Delete error:",e)}
+}
+window.deleteFrag=deleteFrag;
+
+// ── Add fragment form (simplified) ──
+function showAddFragForm(){
+  const nebColor=currentNebula?.color||'#7ec8e3';
+  const ph=lang==='zh'?{c:'亚瑟·摩根',q:'我害怕……我把一切都给了这个帮派。'}:lang==='ja'?{c:'アーサー・モーガン',q:'怖いんだ……俺はこのギャングに全てを捧げた。'}:{c:'Arthur Morgan',q:"I'm afraid... I gave you all I had."};
+  document.getElementById('add-frag-title').textContent=t('addStar');
+  document.getElementById('add-frag-form-body').innerHTML=`
+    <div class="form-group"><label class="form-label">${t('charName')}</label><input class="form-input" id="f-char" placeholder="${ph.c}"></div>
+    <div class="form-group"><label class="form-label">${t('quote')}</label><textarea class="form-input" id="f-quote" placeholder="${ph.q}"></textarea></div>
+    <div class="check-row"><input type="checkbox" id="f-is-orig" style="accent-color:${nebColor}"><label for="f-is-orig">${t('isOrig')}</label></div>
+    <div class="form-group"><label class="form-label">${t('color')}</label>
+      <div class="color-swatches" id="f-colors">${FRAG_COLORS.map((c,i)=>`<div class="color-swatch${i===0?' selected':''}" style="background:${c};color:${c}" data-color="${c}" onclick="pickFragColor(this)"></div>`).join('')}</div>
+    </div>
+    <button class="form-submit" id="f-submit" style="background:${FRAG_COLORS[0]};color:#050510" onclick="submitFragment()">${t('save')}</button>
+  `;
+  document.getElementById('add-frag-modal').classList.add('visible')
+}
+window.showAddFragForm=showAddFragForm;
+
+function pickFragColor(el){
+  document.querySelectorAll('#f-colors .color-swatch').forEach(s=>s.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('f-submit').style.background=el.dataset.color
+}
+window.pickFragColor=pickFragColor;
+
+async function submitFragment(){
+  const btn=document.getElementById('f-submit');btn.disabled=true;btn.textContent=t('saving');
+  const charInput=document.getElementById('f-char').value.trim();
+  const quoteInput=document.getElementById('f-quote').value.trim();
+  const isOrig=document.getElementById('f-is-orig').checked;
+  const selColor=document.querySelector('#f-colors .color-swatch.selected')?.dataset.color||FRAG_COLORS[0];
+  if(!charInput||!quoteInput){btn.disabled=false;btn.textContent=t('save');alert('Please fill in both fields');return}
+
+  // Store only in user's current language field — other languages left empty for readers to fill later
+  const cd={zh:'',en:'',ja:''};const qd={zh:'',en:'',ja:''};
+  cd[lang]=charInput;qd[lang]=quoteInput;
+
+  try{
+    await addDoc(collection(db,"nebulae",currentNebula.id,"fragments"),{
+      character_zh:cd.zh,character_en:cd.en,character_ja:cd.ja,name:cd.zh||cd.en,nameEn:cd.en,
+      quote_zh:qd.zh,quote_en:qd.en,quote_ja:qd.ja,line_zh:qd.zh,line_en:qd.en,line_ja:qd.ja,
+      quote_original:isOrig?quoteInput:'',line_orig:isOrig?quoteInput:'',
+      original_lang:isOrig?lang.toUpperCase():'',line_origLang:isOrig?lang.toUpperCase():'',
+      color:selColor,
+      x:Math.random(),y:Math.random(),createdBy:USER_UUID,createdAt:serverTimestamp(),isSeed:false
+    });
+    await updateDoc(doc(db,"nebulae",currentNebula.id),{fragmentCount:increment(1)});
+    closeModal('add-frag-modal')
+  }catch(e){console.error("Error:",e);alert('Error saving');btn.disabled=false;btn.textContent=t('save')}
+}
+window.submitFragment=submitFragment;
+
+// ── Create nebula ──
+function showCreateNebulaForm(){
+  const ph=lang==='zh'?{n:'荒野大镖客2'}:lang==='ja'?{n:'レッド・デッド・リデンプション2'}:{n:'Red Dead Redemption 2'};
+  document.getElementById('create-nebula-form-body').innerHTML=`
+    <div class="form-group"><label class="form-label">${t('nebName')}</label><input class="form-input" id="n-name" placeholder="${ph.n}"></div>
+    <div class="form-group"><label class="form-label">${t('nebType')}</label>
+      <select class="form-select" id="n-type"><option value="游戏">游戏 Game</option><option value="动漫">动漫 Anime</option><option value="电影">电影 Film</option><option value="影视">影视 TV</option></select>
+    </div>
+    <button class="form-submit" id="n-submit" style="background:#7ec8e3;color:#050510" onclick="submitNebula()">${t('create')}</button>
+  `;
+  document.getElementById('create-nebula-modal').classList.add('visible')
+}
+window.showCreateNebulaForm=showCreateNebulaForm;
+
+async function submitNebula(){
+  const btn=document.getElementById('n-submit');btn.disabled=true;
+  const nameInput=document.getElementById('n-name').value.trim();
+  const type=document.getElementById('n-type').value;
+  if(!nameInput){btn.disabled=false;alert('Please enter a title');return}
+
+  // Store only in user's current language field
+  const nd={zh:'',en:'',ja:''};nd[lang]=nameInput;
+
+  try{
+    await addDoc(collection(db,"nebulae"),{name_zh:nd.zh,name_en:nd.en,name_ja:nd.ja,ip:nd.zh||nd.en||nd.ja,ipEn:nd.en||nd.ja||nd.zh,type,color:TYPE_COLORS[type]||'#aaa',fragmentCount:0,createdBy:USER_UUID,createdAt:serverTimestamp()});
+    closeModal('create-nebula-modal');await loadNebulae()
+  }catch(e){console.error("Error:",e);alert('Error');btn.disabled=false}
+}
+window.submitNebula=submitNebula;
+
+// ── Settings ──
+function showSettings(){
+  document.getElementById('settings-title').textContent=t('settings');
+  let html=`<h3 style="font-size:0.75rem;color:var(--dim);margin-bottom:0.8rem;font-family:'Space Mono',monospace">${t('filterTitle')}</h3><div class="filter-list">`;
+  for(const n of nebulae){
+    const checked=!hiddenNebulae.includes(n.id)?'checked':'';
+    html+=`<div class="filter-item"><input type="checkbox" ${checked} data-nid="${n.id}" onchange="toggleNebFilter(this)"><label>${nebName(n)}</label><span class="filter-type">${n.type}</span></div>`;
+  }
+  html+=`</div>`;
+  document.getElementById('settings-body').innerHTML=html;
+  document.getElementById('settings-modal').classList.add('visible')
+}
+window.showSettings=showSettings;
+
+function toggleNebFilter(el){
+  const nid=el.dataset.nid;
+  if(el.checked)hiddenNebulae=hiddenNebulae.filter(id=>id!==nid);
+  else if(!hiddenNebulae.includes(nid))hiddenNebulae.push(nid);
+  localStorage.setItem('stardust-hidden',JSON.stringify(hiddenNebulae));
+  layoutOrbs()
+}
+window.toggleNebFilter=toggleNebFilter;
+
+// ═══════════════════════════════════════
+//  ONBOARDING
+// ═══════════════════════════════════════
+function onboardPickLang(l){
+  lang=l;localStorage.setItem('stardust-lang',lang);
+  document.querySelectorAll('.lang-option').forEach(el=>{el.classList.toggle('selected',el.textContent.trim()==={zh:'中文',en:'English',ja:'日本語'}[l])});
+  // Show step 2: filter list
+  document.getElementById('onboard-step-lang').style.display='none';
+  document.getElementById('onboard-step-filter').style.display='block';
+  document.getElementById('onboard-filter-title').textContent=t('filterTitle');
+  document.getElementById('onboard-enter-btn').textContent=t('enter');
+  let html='';
+  for(const n of nebulae){html+=`<div class="filter-item"><input type="checkbox" checked data-nid="${n.id}" onchange="toggleNebFilter(this)"><label>${nebName(n)}</label><span class="filter-type">${n.type}</span></div>`}
+  document.getElementById('onboard-filter-list').innerHTML=html
+}
+window.onboardPickLang=onboardPickLang;
+
+function onboardFinish(){
+  localStorage.setItem('stardust-onboarded','1');
+  document.getElementById('onboarding').classList.add('done');
+  layoutOrbs()
+}
+window.onboardFinish=onboardFinish;
+
+// ═══════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════
+async function loadNebulae(){
+  const snap=await getDocs(collection(db,"nebulae"));nebulae=[];
+  snap.forEach(d=>nebulae.push({id:d.id,...d.data()}));
+  const order={"游戏":0,"动漫":1,"电影":2,"影视":3};
+  nebulae.sort((a,b)=>(order[a.type]??9)-(order[b.type]??9));
+  layoutOrbs()
+}
+
+async function init(){
+  try{
+    await loadNebulae();
+    document.getElementById('loading-screen').classList.add('done');
+    // Check if first visit
+    if(!localStorage.getItem('stardust-onboarded')||!lang){
+      document.getElementById('onboarding').style.display='flex'
+    }
+  }catch(e){console.error("Firestore error:",e);document.querySelector('#loading-screen p').textContent='Error connecting...'}
+}
+
+requestAnimationFrame(render);
+init()
+</script>
+</body>
+</html>
